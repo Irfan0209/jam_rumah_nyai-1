@@ -112,7 +112,7 @@ String setTanggal    = "01-01-2024";
 String setText       = "Selamat Datang!";
 // char info1[100];
 // char info2[100];
-uint16_t    brightness    = 50;
+uint16_t    brightness    = 100;
 char   text[200] ;
 bool   adzan         = 0;
 bool   stateBuzzer   = 1;
@@ -276,7 +276,12 @@ void loop() {
     case ANIM_SHOLAT :
        runAnimasiSholat();
     break;
+
+    case ANIM_ADZAN :
+      drawAzzan();
+    break;
   };
+  buzzerWarning();
   yield();
 }
 
@@ -448,6 +453,22 @@ int I2C_ClearBus() {
   pinMode(SDA, INPUT); // and reset pins as tri-state inputs which is the default state on reset
   pinMode(SCL, INPUT);
   return 0; // all ok
+}
+
+void buzzerWarning(){
+
+   RtcDateTime now = Rtc.GetDateTime();
+   if(now.Hour() == 00 && now.Minute() == 00 && now.Second() <= 15){
+    static bool state;
+    static uint32_t save = 0;
+    uint32_t tmr = millis();
+
+    if(tmr - save > 2500){
+      save = tmr;
+      state = !state;
+      digitalWrite(BUZZ, state);
+    }  
+   }
 }
 
 void Buzzer(uint8_t state)

@@ -42,7 +42,7 @@ void runAnimasiJam(){
    if (y == 0 and s==1) {y=0; s=0; flagAnim = false; show = ANIM_SHOLAT;}
   
   fType(0); 
-  dwCtr(1,y-9, buff_jam); 
+  dwCtr(0,y-9, buff_jam); 
   Serial.println("dot:" + String(dot));
 }
 
@@ -276,9 +276,9 @@ void drawAzzan()
         if (!(ct & 1))  // Lebih cepat dibandingkan ct % 2 == 0
         {
             fType(0);
-            dwCtr(0, 8, "ADZAN");
-            fType(0);
-            dwCtr(0, 16, sholat);
+            Disp.drawText(1, 0, "ADZAN");
+            fType(3);
+            Disp.drawText(1, 9, sholat);
             Buzzer(1);
         }
         else
@@ -291,7 +291,7 @@ void drawAzzan()
     
     if ((Tmr - lsRn) > 1500 && (ct > limit))
     {
-        show = ANIM_IQOMAH;
+        show = ANIM_JAM;
         Disp.clear();
         ct = 0;
         Buzzer(0);
