@@ -1,15 +1,15 @@
 
 
 //SETUP DMD
-#define DISPLAYS_WIDE 2
-#define DISPLAYS_HIGH 2
+#define DISPLAYS_WIDE 1
+#define DISPLAYS_HIGH 1
 
-#if defined(ESP8266) || defined(ESP32)  // Jika menggunakan ESP8266 atau ESP32
+
   #include <ESP8266WiFi.h>
   #include <ESP8266WebServer.h>
   #include <ESP8266mDNS.h>
   #include <WiFiUdp.h>
-  #include <ArduinoOTA.h>
+  //#include <ArduinoOTA.h>
   
   #include <DMDESP.h>
   #include <ESP_EEPROM.h>
@@ -22,19 +22,6 @@
   const char* host = "OTA-PANEL";
 
   ESP8266WebServer server(80);
-
-#else
-  #include <SPI.h>
-  #include <DMD3asis.h>
-  #include <avr/pgmspace.h>
-  #include <MemoryFree.h>
-  #include <EEPROM.h>
-  
-  DMD3 Disp(DISPLAYS_WIDE,DISPLAYS_HIGH);
-  
-#endif
-
-
 
 #include <Wire.h>
 #include <RtcDS3231.h>
@@ -139,10 +126,7 @@ uint8_t    sholatNow     = -1;
 bool       reset_x       = 0; 
 
 /*======library tambahan=======*/
-//byte   tampilan      = 1;
-//byte   mode          = 1;
-uint8_t   list          = 0; 
-//bool   flag1         = 1;//variabel untuk menyimpan status animasi running text  
+bool flagAnim = false;
 uint8_t    speedDate      = 40; // Kecepatan default date
 uint8_t    speedText1     = 40; // Kecepatan default text  
 uint8_t     speedText2    = 40;
@@ -165,8 +149,6 @@ enum Show{
 
 Show show = ANIM_JAM;
 
-
-#if defined(ESP8266) || defined(ESP32)
   //----------------------------------------------------------------------
   // HJS589 P10 FUNGSI TAMBAHAN UNTUK NODEMCU ESP8266
   
@@ -204,7 +186,7 @@ Show show = ANIM_JAM;
     Serial.print("AP IP address: ");
     Serial.println(myIP);
     
-    ArduinoOTA.setHostname(host);
+    /*ArduinoOTA.setHostname(host);
      ArduinoOTA.onStart([]() {
       String type;
       if (ArduinoOTA.getCommand() == U_FLASH) {
@@ -237,31 +219,9 @@ Show show = ANIM_JAM;
       }
     });
     ArduinoOTA.begin();
-    
+    */
     Serial.println("Server dimulai.");  
   }
-#else
-  // =========================================
-  // DMD3 P10 utility Function================
-  // =========================================
-  void Disp_init_arduino() 
-    { 
-      Disp.setDoubleBuffer(true);
-      Timer1.initialize(1500);
-      Timer1.attachInterrupt(scan);
-      setBrightness(200);
-      fType(1);  
-      Disp.clear();
-      Disp.swapBuffers();
-    }
-
-  void setBrightness(int bright)
-    { Timer1.pwm(9,bright);}
-
-  void scan()
-    { Disp.refresh();}
-  
-#endif
 
 void setup() {
   Serial.begin(115200);
@@ -286,14 +246,10 @@ void setup() {
   Rtc.Enable32kHzPin(false);
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone); 
 
-#if defined(ESP8266) || defined(ESP32)
   Disp_init_esp();
   AP_init();
-#else
-  Disp_init_arduino();
-#endif
 
-JadwalSholat();
+//JadwalSholat();
 
 for(int i = 0; i < 4; i++)
  {
@@ -306,8 +262,31 @@ for(int i = 0; i < 4; i++)
 }
 
 void loop() {
-  getData();
+  
+  
+  check();
+  islam();
+  
+  
+  switch(show){
+    case ANIM_JAM :
+      runAnimasiJam();
+      drawDate();
+    break;
 
+    case ANIM_TEXT :
+      runAnimasiJam();
+      runningTextInfo2();
+    break;
+
+    case ANIM_SHOLAT :
+       runAnimasiSholat();
+    break;
+
+    
+      
+  };
+   yield();
 }
 
 void getData(){
@@ -411,25 +390,7 @@ void getData(){
     }
 }
 
-// PARAMETER PENGHITUNGAN JADWAL SHOLAT
-void JadwalSholat() {
-  
-  RtcDateTime now = Rtc.GetDateTime();
 
-  int tahun = now.Year();
-  int bulan = now.Month();
-  int tanggal = now.Day();
-
-  Serial.println("calcualat run");
-  set_calc_method(Karachi);
-  set_asr_method(Shafii);
-  set_high_lats_adjust_method(AngleBased);
-  set_fajr_angle(20);
-  set_isha_angle(18);
-
-  get_prayer_times(tahun, bulan, tanggal, config.latitude, config.longitude, config.zonawaktu, times);
- //yield();
-}
 
  //----------------------------------------------------------------------
 // I2C_ClearBus menghindari gagal baca RTC (nilai 00 atau 165)

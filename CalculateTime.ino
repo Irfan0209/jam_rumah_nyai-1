@@ -127,3 +127,23 @@ int jumlahhari() {
 
   return (ht + hs + kab);
 }
+
+// PARAMETER PENGHITUNGAN JADWAL SHOLAT
+void JadwalSholat() {
+  
+  RtcDateTime now = Rtc.GetDateTime();
+
+  int tahun = now.Year();
+  int bulan = now.Month();
+  int tanggal = now.Day();
+
+  Serial.println("calcualat run");
+  set_calc_method(Karachi);
+  set_asr_method(Shafii);
+  set_high_lats_adjust_method(AngleBased);
+  set_fajr_angle(20);
+  set_isha_angle(18);
+
+  get_prayer_times(tahun, bulan, tanggal, config.latitude, config.longitude, config.zonawaktu, times);
+ //yield();
+}
