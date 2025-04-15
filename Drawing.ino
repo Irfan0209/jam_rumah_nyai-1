@@ -19,8 +19,8 @@ const char jadwal[][8] PROGMEM = {
 //================= tampilan animasi ==================//
 
 void runAnimasiJam(){
-  //if(adzan) return;
-   RtcDateTime now = Rtc.GetDateTime();
+  
+  RtcDateTime now = Rtc.GetDateTime();
   static int    y=0;
   static bool    s; // 0=in, 1=out              
   static unsigned long   lsRn;
@@ -36,22 +36,19 @@ void runAnimasiJam(){
         if(s==0 and y<9 ){lsRn=Tmr;y++; }
         if(s==1 and y>0){lsRn=Tmr;y--; if(y == 1){ Disp.drawText(0,0, "          "); }}
       }
-   //if((Tmr-lsRn)>10000 and 
+  
    if(y ==9 and flagAnim == true) {s=1;}
 
    if (y == 0 and s==1) {y=0; s=0; flagAnim = false; show = ANIM_SHOLAT;}
   
   fType(0); 
-  dwCtr(0,y-9, buff_jam); 
+  dwCtr(1,y-9, buff_jam); 
   Serial.println("dot:" + String(dot));
 }
 
 void drawDate(){
   static unsigned int x;
-  //if (reset_x !=0) { x=0;reset_x = 0;}
   static int fullScroll = 0;
-  //if(adzan) return;
- //flagAnim = false;
   RtcDateTime now = Rtc.GetDateTime();
   static unsigned long   lsRn;
   unsigned long          Tmr = millis();
@@ -59,8 +56,6 @@ void drawDate(){
   int Speed = speedDate;
   byte daynow   = now.DayOfWeek();    // load day Number
   
-  //char buff_date[30];
-
   char buff_date[100]; // Pastikan ukuran buffer cukup besar
     snprintf(buff_date,sizeof(buff_date), "%s %s %02d %s %04d %02d %s %04dH",
     Hari[daynow], pasar[jumlahhari() % 5], now.Day(), bulanMasehi[now.Month()-1], now.Year(),
@@ -78,7 +73,6 @@ void drawDate(){
   
   if (x >= fullScroll) {
     x = 0;
-    //flagAnim = true;
     show = ANIM_TEXT;
   }
 }
@@ -90,8 +84,6 @@ void runningTextInfo2() {
   static unsigned long lsRn;
   unsigned long Tmr = millis();
   int Speed = speedText2;
-  //flagAnim = false;
-  // Simpan teks di Flash (PROGMEM)
   
   char msg_buffer[50]; // Pastikan cukup besar untuk teks
   strcpy_P(msg_buffer, msg1); // Ambil teks dari Flash
@@ -124,7 +116,7 @@ void runningTextInfo2() {
 
 void runAnimasiSholat(){
  
-  if(adzan) return;
+  //if(adzan) return;
   RtcDateTime now = Rtc.GetDateTime();
   static int        y=0;
   static int        x=0;
@@ -168,16 +160,12 @@ void runAnimasiSholat(){
 
   get_float_time_parts(times[list], hours, minutes);
 
-    minutes = minutes + config.ihti;
-
+    //minutes = minutes + config.ihti;
+    minutes += dataIhty[list];
   if(minutes >= 60) {
       minutes = minutes - 60;
       hours ++;
   }
-
-  // if(list==5){ 
-    
-  // }
 
   sprintf(buff_jam,"%02d:%02d",hours,minutes);
 

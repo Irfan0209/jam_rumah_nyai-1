@@ -5,23 +5,19 @@
 #define DISPLAYS_HIGH 1
 
 
-  #include <ESP8266WiFi.h>
-  #include <ESP8266WebServer.h>
-  #include <ESP8266mDNS.h>
-  #include <WiFiUdp.h>
-  //#include <ArduinoOTA.h>
-  
-  #include <DMDESP.h>
-  #include <ESP_EEPROM.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
 
-  DMDESP  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan (KOLOM,BARIS)
-  
-  // Pengaturan hotspot WiFi dari ESP8266
-  char ssid[20]     = "JAM_PANEL_MUSHOLLAH";
-  char password[20] = "00000000";
-  const char* host = "OTA-PANEL";
+#include <DMDESP.h>
+#include <ESP_EEPROM.h>
+DMDESP  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan (KOLOM,BARIS)
 
-  ESP8266WebServer server(80);
+// Pengaturan hotspot WiFi dari ESP8266
+char ssid[20]     = "JAM_PANEL_MUSHOLLAH";
+char password[20] = "00000000";
+const char* host = "OTA-PANEL";
+ESP8266WebServer server(80);
 
 #include <Wire.h>
 #include <RtcDS3231.h>
@@ -30,14 +26,14 @@
 #include "PrayerTimes.h"
 
 
-#include <C:\Users\irfan\Documents\Project\project-jam-jws(pro)\fonts/SystemFont5x7.h>
-#include <C:\Users\irfan\Documents\Project\project-jam-jws(pro)\fonts/Font4x6.h>
-#include <C:\Users\irfan\Documents\Project\project-jam-jws(pro)\fonts/System4x7.h>
-#include <C:\Users\irfan\Documents\Project\project-jam-jws(pro)\fonts/SmallCap4x6.h>
-#include <C:\Users\irfan\Documents\Project\project-jam-jws(pro)\fonts/EMSans6x16.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/SystemFont5x7.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/Font4x6.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/System4x7.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/SmallCap4x6.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/EMSans6x16.h>
 
 
-#define BUZZ  4//D4 // PIN BUZZER
+#define BUZZ  D4 // PIN BUZZER
 
 #define Font0 SystemFont5x7
 #define Font1 Font4x6
@@ -114,8 +110,8 @@ Config config;
 String setJam        = "00:00:00";
 String setTanggal    = "01-01-2024";
 String setText       = "Selamat Datang!";
-char info1[100];
-char info2[100];
+// char info1[100];
+// char info2[100];
 uint16_t    brightness    = 50;
 char   text[200] ;
 bool   adzan         = 0;
@@ -149,79 +145,79 @@ enum Show{
 
 Show show = ANIM_JAM;
 
-  //----------------------------------------------------------------------
-  // HJS589 P10 FUNGSI TAMBAHAN UNTUK NODEMCU ESP8266
+//----------------------------------------------------------------------
+// HJS589 P10 FUNGSI TAMBAHAN UNTUK NODEMCU ESP8266
+
+void ICACHE_RAM_ATTR refresh() {
+  Disp.refresh();
+  timer0_write(ESP.getCycleCount() + 80000);
+}
+
+void Disp_init_esp() {
+  EEPROM.begin(EEPROM_SIZE);
+  Disp.start();
+  Disp.clear();
+  Disp.setBrightness(brightness);
+  Serial.println("Setup dmd selesai");
+
+  noInterrupts();
+  timer0_isr_init();
+  timer0_attachInterrupt(refresh);
+  timer0_write(ESP.getCycleCount() + 80000);
+  interrupts();
+}
+
+IPAddress local_IP(192, 168, 2, 1);      // IP Address untuk AP
+IPAddress gateway(192, 168, 2, 1);       // Gateway
+IPAddress subnet(255, 255, 255, 0);      // Subnet mask
+
+void AP_init() {
   
-  void ICACHE_RAM_ATTR refresh() {
-    Disp.refresh();
-    timer0_write(ESP.getCycleCount() + 80000);
-  }
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  WiFi.softAP(ssid);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP); // Pastikan WiFi tidak sleep
+
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(myIP);
   
-  void Disp_init_esp() {
-    EEPROM.begin(EEPROM_SIZE);
-    Disp.start();
-    Disp.clear();
-    Disp.setBrightness(brightness);
-    Serial.println("Setup dmd selesai");
-  
-    noInterrupts();
-    timer0_isr_init();
-    timer0_attachInterrupt(refresh);
-    timer0_write(ESP.getCycleCount() + 80000);
-    interrupts();
-  }
-  
-  IPAddress local_IP(192, 168, 2, 1);      // IP Address untuk AP
-  IPAddress gateway(192, 168, 2, 1);       // Gateway
-  IPAddress subnet(255, 255, 255, 0);      // Subnet mask
-  
-  void AP_init() {
-    
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(local_IP, gateway, subnet);
-    WiFi.softAP(ssid);
-    WiFi.setSleepMode(WIFI_NONE_SLEEP); // Pastikan WiFi tidak sleep
-  
-    IPAddress myIP = WiFi.softAPIP();
-    Serial.print("AP IP address: ");
-    Serial.println(myIP);
-    
-    /*ArduinoOTA.setHostname(host);
-     ArduinoOTA.onStart([]() {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH) {
-        type = "sketch";
-      } else {  // U_FS
-        type = "filesystem";
-      }
-  
-      // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-      Serial.println("Start updating " + type);
-    });
-    ArduinoOTA.onEnd([]() {
-      Serial.println("\nEnd");
-    });
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    });
-    ArduinoOTA.onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) {
-        Serial.println("Auth Failed");
-      } else if (error == OTA_BEGIN_ERROR) {
-        Serial.println("Begin Failed");
-      } else if (error == OTA_CONNECT_ERROR) {
-        Serial.println("Connect Failed");
-      } else if (error == OTA_RECEIVE_ERROR) {
-        Serial.println("Receive Failed");
-      } else if (error == OTA_END_ERROR) {
-        Serial.println("End Failed");
-      }
-    });
-    ArduinoOTA.begin();
-    */
-    Serial.println("Server dimulai.");  
-  }
+  /*ArduinoOTA.setHostname(host);
+   ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else {  // U_FS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+  */
+  Serial.println("Server dimulai.");  
+}
 
 void setup() {
   Serial.begin(115200);
@@ -249,7 +245,7 @@ void setup() {
   Disp_init_esp();
   AP_init();
 
-//JadwalSholat();
+JadwalSholat();
 
 for(int i = 0; i < 4; i++)
  {
@@ -263,10 +259,8 @@ for(int i = 0; i < 4; i++)
 
 void loop() {
   
-  
   check();
   islam();
-  
   
   switch(show){
     case ANIM_JAM :
@@ -282,11 +276,8 @@ void loop() {
     case ANIM_SHOLAT :
        runAnimasiSholat();
     break;
-
-    
-      
   };
-   yield();
+  yield();
 }
 
 void getData(){
