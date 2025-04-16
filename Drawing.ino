@@ -23,9 +23,9 @@ void runAnimasiJam(){
   RtcDateTime now = Rtc.GetDateTime();
   static int    y=0;
   static bool    s; // 0=in, 1=out              
-  static unsigned long   lsRn;
-  unsigned long          Tmr = millis();
-  int dot    = now.Second();
+  static uint32_t   lsRn;
+  uint32_t          Tmr = millis();
+  uint8_t dot    = now.Second();
   char buff_jam[20];
   
   if(dot & 1){sprintf(buff_jam,"%02d:%02d",now.Hour(),now.Minute());}
@@ -43,18 +43,18 @@ void runAnimasiJam(){
   
   fType(0); 
   dwCtr(0,y-9, buff_jam); 
-  Serial.println("dot:" + String(dot));
+  //Serial.println("dot:" + String(dot));
 }
 
 void drawDate(){
-  static unsigned int x;
-  static int fullScroll = 0;
+  static uint16_t x;
+  static uint16_t fullScroll = 0;
   RtcDateTime now = Rtc.GetDateTime();
-  static unsigned long   lsRn;
-  unsigned long          Tmr = millis();
+  static uint32_t   lsRn;
+  uint32_t          Tmr = millis();
    
-  int Speed = speedDate;
-  byte daynow   = now.DayOfWeek();    // load day Number
+  uint8_t Speed = speedDate;
+  uint8_t daynow   = now.DayOfWeek();    // load day Number
   
   char buff_date[100]; // Pastikan ukuran buffer cukup besar
     snprintf(buff_date,sizeof(buff_date), "%s %s %02d %s %04d %02d %s %04dH",
@@ -79,17 +79,17 @@ void drawDate(){
 
 }
 
-void runningTextInfo2() {
-  static unsigned int x = 0;
-  static unsigned long lsRn;
-  unsigned long Tmr = millis();
-  int Speed = speedText2;
+void runningTextInfo() {
+  static uint16_t x = 0;
+  static uint32_t lsRn;
+  uint32_t Tmr = millis();
+  uint8_t Speed = speedText1;
   
   char msg_buffer[50]; // Pastikan cukup besar untuk teks
   strcpy_P(msg_buffer, msg1); // Ambil teks dari Flash
 
   // Hitung panjang teks hanya sekali
-  static int fullScroll = 0;
+  static uint16_t fullScroll = 0;
   if (fullScroll == 0) { 
     fullScroll = Disp.textWidth(msg_buffer) + Disp.width() + 250;
   }
@@ -120,9 +120,9 @@ void runAnimasiSholat(){
   RtcDateTime now = Rtc.GetDateTime();
   static int        y=0;
   static int        x=0;
-  static byte       s=0; // 0=in, 1=out   
-  static byte       s1=0;
-  static byte list,lastList;
+  static uint8_t       s=0; // 0=in, 1=out   
+  static uint8_t       s1=0;
+  static uint8_t list,lastList;
 
   if(list != lastList){s=0; s1=0; x=0; y=0;lastList = list; }
 
@@ -131,9 +131,9 @@ void runAnimasiSholat(){
   
   const char *jadwal[] = {"SUBUH", "TERBIT", "DZUHUR", "ASHAR", "TRBNM", "MAGRIB", "ISYA'"};
   int hours, minutes;
-  int tahun = now.Year();
-  int bulan = now.Month();
-  int tanggal = now.Day();
+  uint16_t tahun = now.Year();
+  uint8_t bulan = now.Month();
+  uint8_t tanggal = now.Day();
   char buff_jam[10];
 
   if((Tmr-lsRn)>55) 
@@ -200,7 +200,7 @@ void runAnimasiSholat(){
 //==================== tampilkan jadwal sholat ====================//
 void jadwalSholat(){
  
-if (adzan) return;
+//if (adzan) return;
 
   RtcDateTime now = Rtc.GetDateTime();
   static int x = 0;
@@ -268,7 +268,7 @@ void drawAzzan()
     static uint8_t ct = 0;
     static uint32_t lsRn = 0;
     uint32_t Tmr = millis();
-    const uint8_t limit = 40; // config.durasiadzan;
+    const uint8_t limit = config.durasiadzan;
 
     if (Tmr - lsRn > 500 && ct <= limit)
     {
@@ -297,7 +297,7 @@ void drawAzzan()
         Buzzer(0);
     }
 }
-
+/*
 void drawIqomah()  // Countdown Iqomah (9 menit)
 {  
     static uint32_t lsRn = 0;
@@ -386,7 +386,7 @@ void blinkBlock()
         Disp.clear();
         show = ANIM_JAM;
     }
-}
+}*/
 //===================================== end =================================//
 
 //=========================== setingan untuk tampilan text=================//

@@ -7,7 +7,7 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
+//#include <ESP8266mDNS.h>
 
 #include <DMDESP.h>
 #include <ESP_EEPROM.h>
@@ -50,14 +50,14 @@ RtcDS3231<TwoWire> Rtc(Wire);
 RtcDateTime now;
 double times[sizeof(TimeName)/sizeof(char*)];
 
-uint8_t ihtiSholat[]    = {0,0,0,0,0};
+//uint8_t ihtiSholat[]    = {0,0,0,0,0};
 uint8_t iqomah[]        = {5,1,5,5,5,2,5};
 uint8_t displayBlink[]  = {5,0,5,5,5,5,5};
 uint8_t dataIhty[]      = {3,0,3,3,0,3,2};
 
 struct Config {
   uint8_t chijir;
-  uint8_t durasiadzan;
+  uint8_t durasiadzan = 40;
   uint8_t ihti;
   float latitude = -7.364057;
   float longitude = 112.646222;
@@ -107,13 +107,13 @@ Config config;
 
 
 // Variabel untuk waktu, tanggal, teks berjalan, tampilan ,dan kecerahan
-String setJam        = "00:00:00";
-String setTanggal    = "01-01-2024";
-String setText       = "Selamat Datang!";
+//String setJam        = "00:00:00";
+//String setTanggal    = "01-01-2024";
+//String setText       = "Selamat Datang!";
 // char info1[100];
 // char info2[100];
-uint16_t    brightness    = 100;
 char   text[200] ;
+uint16_t    brightness    = 100;
 bool   adzan         = 0;
 bool   stateBuzzer   = 1;
 uint8_t    DWidth        = Disp.width();
@@ -144,6 +144,13 @@ enum Show{
 };
 
 Show show = ANIM_JAM;
+
+//----------------------web server---------------------------//
+void handleSetTime() {
+  Serial.println("hansle run");
+  
+}
+//=============================================================//
 
 //----------------------------------------------------------------------
 // HJS589 P10 FUNGSI TAMBAHAN UNTUK NODEMCU ESP8266
@@ -181,6 +188,9 @@ void AP_init() {
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
+
+  server.on("/setTime", handleSetTime);
+  server.begin();
   
   /*ArduinoOTA.setHostname(host);
    ArduinoOTA.onStart([]() {
@@ -219,10 +229,12 @@ void AP_init() {
   Serial.println("Server dimulai.");  
 }
 
+
+
 void setup() {
   Serial.begin(115200);
   pinMode(BUZZ, OUTPUT); 
-
+  digitalWrite(BUZZ,HIGH);
   int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
     if (rtn != 0) {
       Serial.println(F("I2C bus error. Could not clear"));
@@ -243,7 +255,7 @@ void setup() {
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone); 
 
   Disp_init_esp();
-  AP_init();
+  //AP_init();
 
 JadwalSholat();
 
@@ -270,7 +282,7 @@ void loop() {
 
     case ANIM_TEXT :
       runAnimasiJam();
-      runningTextInfo2();
+      runningTextInfo();
     break;
 
     case ANIM_SHOLAT :
@@ -284,7 +296,7 @@ void loop() {
   buzzerWarning();
   yield();
 }
-
+/*
 void getData(){
   if (Serial.available()) {
         String input = Serial.readStringUntil('\n');
@@ -385,7 +397,7 @@ void getData(){
         }
     }
 }
-
+*/
 
 
  //----------------------------------------------------------------------
@@ -492,7 +504,7 @@ void Buzzer(uint8_t state)
       break;
     };
   }
-
+/*
   void parsingData(String data){
   // Data string
   //String data = "0.1234-111.2345-7";
@@ -537,4 +549,4 @@ void Buzzer(uint8_t state)
   }
 
   //Serial.println("\nParsing selesai di proses()");
-}
+}*/
