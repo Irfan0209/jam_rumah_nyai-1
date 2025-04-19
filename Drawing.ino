@@ -2,7 +2,7 @@
 const char * const pasar[] PROGMEM = {"WAGE", "KLIWON", "LEGI", "PAHING", "PON"}; 
 const char * const Hari[] PROGMEM = {"AHAD","SENIN","SELASA","RABU","KAMIS","JUM'AT","SABTU"};
 const char * const bulanMasehi[] PROGMEM = {"JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
-const char msg1[] PROGMEM ="DZULKARNAINI,KHORIDAH,DEWI,NASIK,MAHBUBAH";
+const char msg1[] PROGMEM ="DZULKARNAINI/NAINI,KHORIDAH,DEWI,NASIK,MAHBUBAH";
 const char * const namaBulanHijriah[] PROGMEM = {
     "MUHARRAM", "SHAFAR", "RABIUL AWAL",
     "RABIUL AKHIR", "JUMADIL AWAL", 
