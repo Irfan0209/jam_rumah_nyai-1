@@ -16,7 +16,7 @@ DMDESP  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan 
 // Pengaturan hotspot WiFi dari ESP8266
 char ssid[20]     = "JAM_PANEL_1";
 char password[20] = "00000000";
-const char* host = "OTA-PANEL";
+//const char* host = "OTA-PANEL";
 ESP8266WebServer server(80);
 
 #include <Wire.h>
@@ -26,11 +26,11 @@ ESP8266WebServer server(80);
 #include <Prayer.h>
 
 
-#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/SystemFont5x7.h>
-#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/Font4x6.h>
-#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/System4x7.h>
-#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/SmallCap4x6.h>
-#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-1\fonts/EMSans6x16.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-2\fonts/SystemFont5x7.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-2\fonts/Font4x6.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-2\fonts/System4x7.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-2\fonts/SmallCap4x6.h>
+#include <C:\Users\irfan\Documents\Project\jam_rumah_nyai-2\fonts/EMSans6x16.h>
 
 
 #define BUZZ  D4 // PIN BUZZER
@@ -67,7 +67,7 @@ Config config;
 
 
 // Variabel untuk waktu, tanggal, teks berjalan, tampilan ,dan kecerahan
-char   text[100];
+char text1[101], text2[101];
 uint16_t   brightness    = 100;
 bool       adzan         = 0;
 bool       stateBuzzer   = 1;
@@ -104,6 +104,7 @@ Show show = ANIM_JAM;
 
 #define EEPROM_SIZE 512
 
+/*
 // Alamat EEPROM untuk tiap variabel
 #define ADDR_TEXT       0
 #define ADDR_BRIGHTNESS 110
@@ -120,6 +121,27 @@ Show show = ANIM_JAM;
 #define ADDR_PASSWORD   150
 #define ADDR_DURASIADZAN  174
 #define ADDR_CORRECTION   176
+*/
+#define EEPROM_SIZE       512
+
+// Alamat EEPROM
+#define ADDR_TEXT1        0     // text1, max 100 bytes
+#define ADDR_TEXT2       100   // text2, max 100 bytes
+#define ADDR_BRIGHTNESS  200
+#define ADDR_SPEEDTX1    202
+#define ADDR_SPEEDTX2    204   // Tambahan untuk speed text 2
+#define ADDR_SPEEDDT     206
+#define ADDR_LATITUDE    208
+#define ADDR_LONGITUDE   212
+#define ADDR_TZ          216
+#define ADDR_ALTITUDE    218
+#define ADDR_IQOMAH      220  // 6 byte
+#define ADDR_BLINK       226  // 6 byte
+#define ADDR_IHTY        232  // 6 byte
+#define ADDR_BUZZER      238
+#define ADDR_PASSWORD    240  // 8 byte
+#define ADDR_DURASIADZAN 248
+#define ADDR_CORRECTION  250
 
 
 void saveStringToEEPROM(int startAddr, String data, int maxLength) {
@@ -148,21 +170,21 @@ void saveIntToEEPROM(int addr, int16_t value) {
 // Fungsi untuk mengatur jam, tanggal, running text, dan kecerahan
 void handleSetTime() {
   Serial.println("hansle run");
- 
+  //Buzzer(1);
   String data;
   if (server.hasArg("Tm")) {
     data = server.arg("Tm");
     data = "Tm=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Settingan jam berhasil diupdate");
+    server.send(200, "text/plain", "OK");//"Settingan jam berhasil diupdate");
   }
   if (server.hasArg("text")) {
     data = server.arg("text");
     data = "text=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Settingan nama berhasil diupdate");
+    server.send(200, "text/plain", "OK");//"Settingan text berhasil diupdate");
   }
   
   if (server.hasArg("Br")) {
@@ -170,84 +192,91 @@ void handleSetTime() {
     data = "Br=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Kecerahan berhasil diupdate");
+    server.send(200, "text/plain", "OK");//"Kecerahan berhasil diupdate");
   }
   if (server.hasArg("Spdt")) {
     data = server.arg("Spdt"); // Atur kecepatan date
     data = "Spdt=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Kecepatan kalender berhasil diupdate");
+    server.send(200, "text/plain", "OK");//"Kecepatan kalender berhasil diupdate");
   }
-  if (server.hasArg("Sptx")) {
-    data = server.arg("Sptx"); // Atur kecepatan text
-    data = "Sptx=" + data;
+  if (server.hasArg("Sptx1")) {
+    data = server.arg("Sptx1"); // Atur kecepatan text
+    data = "Sptx1=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Kecepatan nama berhasil diupdate");
+    server.send(200, "text/plain", "OK");//"Kecepatan nama 1 berhasil diupdate");
+  }
+  if (server.hasArg("Sptx2")) {
+    data = server.arg("Sptx2"); // Atur kecepatan text
+    data = "Sptx2=" + data;
+    Serial.println(data);
+    getData(data);
+    server.send(200, "text/plain", "OK");//"Kecepatan nama 2 berhasil diupdate");
   }
   if (server.hasArg("Iq")) {
     data = server.arg("Iq"); // Atur koreksi iqomah
     data = "Iq=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "iqomah diupdate");
+    server.send(200, "text/plain", "OK");//"iqomah diupdate");
   }
   if (server.hasArg("Dy")) {
     data = server.arg("Dy"); // Atur durasi adzan
     data = "Dy=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "displayBlink diupdate");
+    server.send(200, "text/plain", "OK");//"displayBlink diupdate");
   }
   if (server.hasArg("Kr")) {
     data = server.arg("Kr"); // Atur koreksi waktu jadwal sholat
     data = "Kr=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "Selisih jadwal sholat diupdate");
+    server.send(200, "text/plain", "OK");//"Selisih jadwal sholat diupdate");
   }
   if (server.hasArg("Lt")) {
     data = server.arg("Lt"); // Atur latitude
     data = "Lt=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "latitude diupdate");
+    server.send(200, "text/plain", "OK");//"latitude diupdate");
   }
   if (server.hasArg("Lo")) {
     data = server.arg("Lo"); // Atur latitude
     data = "Lo=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "longitude diupdate");
+    server.send(200, "text/plain", "OK");//"longitude diupdate");
   }
   if (server.hasArg("Tz")) {
     data = server.arg("Tz"); // Atur latitude
     data = "Tz=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "timezone diupdate");
+    server.send(200, "text/plain", "OK");//"timezone diupdate");
   }
   if (server.hasArg("Al")) {
     data = server.arg("Al"); // Atur latitude
     data = "Al=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "altitude diupdate");
+    server.send(200, "text/plain", "OK");//"altitude diupdate");
   }
   if (server.hasArg("Da")) { 
     data = server.arg("Da"); 
     data = "Da=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "durasi adzan diupdate");
+    server.send(200, "text/plain", "OK");// "durasi adzan diupdate");
   }
   if (server.hasArg("CoHi")) {
     data = server.arg("CoHi"); // Atur latitude
     data = "CoHi=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", "coreksi hijriah diupdate");
+    server.send(200, "text/plain", "OK");//"coreksi hijriah diupdate");
   }
 
   if (server.hasArg("Bzr")) {
@@ -255,7 +284,7 @@ void handleSetTime() {
     data = "Bzr=" + data;
     Serial.println(data);
     getData(data);
-    server.send(200, "text/plain", (stateBuzzer) ? "Suara Diaktifkan" : "Suara Dimatikan");
+    server.send(200, "text/plain","OK");// (stateBuzzer) ? "Suara Diaktifkan" : "Suara Dimatikan");
   }
   if (server.hasArg("status")) {
     server.send(200, "text/plain", "CONNECTED");
@@ -266,9 +295,10 @@ void handleSetTime() {
       data = "newPassword=" + data;
       Serial.println(data);
       getData(data);
-      server.send(200, "text/plain", "Password WiFi diupdate");
+      server.send(200, "text/plain","OK");// "Password WiFi diupdate");
     } 
   data="";
+  //Buzzer(0);
   }
   
 //=============================================================//
@@ -306,11 +336,12 @@ void AP_init() {
   WiFi.softAP(ssid,password);
   WiFi.setSleepMode(WIFI_NONE_SLEEP); // Pastikan WiFi tidak sleep
 
+  delay(1000);
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
 
-  server.on("/setTime", handleSetTime);
+  server.on("/setPanel", handleSetTime);
   server.begin();
   
   Serial.println("Server dimulai.");  
@@ -343,7 +374,7 @@ void setup() {
   Rtc.Enable32kHzPin(false);
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
   loadFromEEPROM();
-  delay(100);
+  delay(1000);
   Disp_init_esp();
   AP_init();
   
@@ -410,13 +441,34 @@ void getData(String input) {
       }
     }
 
-    else if (key == "text") {
+    /*else if (key == "text") {
       value = value.substring(0, 100); // Batasi 100 karakter
       value.toCharArray(text, value.length() + 1);
       saveStringToEEPROM(ADDR_TEXT, value, 100);
       delay(500);
       ESP.restart();
+    }*/
+    else if (key == "text") {
+      int separatorIndex = value.indexOf('-');
+      if (separatorIndex != -1) {
+        int indexText = value.substring(0, separatorIndex).toInt();
+        String pesan = value.substring(separatorIndex + 1);
+
+        if (pesan.length() > 100) pesan = pesan.substring(0, 100);
+
+        if (indexText == 1) {
+          pesan.toCharArray(text1, 101);
+          saveStringToEEPROM(ADDR_TEXT1, String(text1), 100);
+        } else if (indexText == 2) {
+          pesan.toCharArray(text2, 101);
+          saveStringToEEPROM(ADDR_TEXT2, String(text2), 100);
+        }
+      }
+      Buzzer(1);
+      delay(500);
+      ESP.restart();
     }
+
 
     else if (key == "Br") {
       brightness = map(value.toInt(), 0, 100, 10, 255);
@@ -424,9 +476,14 @@ void getData(String input) {
       saveIntToEEPROM(ADDR_BRIGHTNESS, brightness);
     }
 
-    else if (key == "Sptx") {
+    else if (key == "Sptx1") {
       speedText1 = map(value.toInt(), 0, 100, 10, 80);
-      saveIntToEEPROM(ADDR_SPEEDTX, speedText1);
+      saveIntToEEPROM(ADDR_SPEEDTX1, speedText1);
+    }
+
+    else if (key == "Sptx2") {
+      speedText2 = map(value.toInt(), 0, 100, 10, 80);
+      saveIntToEEPROM(ADDR_SPEEDTX2, speedText2);
     }
 
     else if (key == "Spdt") {
@@ -503,6 +560,7 @@ void getData(String input) {
         value.toCharArray(password, value.length() + 1);
         saveStringToEEPROM(ADDR_PASSWORD, value, 8);
         server.send(200, "text/plain", "Password WiFi diupdate");
+        Buzzer(1);
         delay(500);
         ESP.restart();
       }
@@ -515,22 +573,39 @@ void getData(String input) {
 
 void loadFromEEPROM() {
   Serial.println("=== Membaca Data dari EEPROM ===");
-
+  /*
   // Baca text
   for (int i = 0; i < 100; i++) {
     text[i] = EEPROM.read(ADDR_TEXT + i);
     if (text[i] == 0) break;
+  }*/
+  
+
+  for (int i = 0; i < 100; i++) {
+    text1[i] = EEPROM.read(ADDR_TEXT1 + i);
+    if (text1[i] == 0) break;
   }
-  Serial.print("Text: ");
-  Serial.println(text);
+  Serial.print("Text1: ");
+  Serial.println(text1);
+  
+  for (int i = 0; i < 100; i++) {
+    text2[i] = EEPROM.read(ADDR_TEXT2 + i);
+    if (text2[i] == 0) break;
+  }
+  Serial.print("Text2: ");
+  Serial.println(text2);
 
   brightness = EEPROM.read(ADDR_BRIGHTNESS);
   Serial.print("Brightness: ");
   Serial.println(brightness);
 
-  speedText1 = EEPROM.read(ADDR_SPEEDTX);
-  Serial.print("Speed Text: ");
+  speedText1 = EEPROM.read(ADDR_SPEEDTX1);
+  Serial.print("Speed Text1: ");
   Serial.println(speedText1);
+
+  speedText2 = EEPROM.read(ADDR_SPEEDTX2);
+  Serial.print("Speed Text2: ");
+  Serial.println(speedText2);
 
   speedDate = EEPROM.read(ADDR_SPEEDDT);
   Serial.print("Speed Date: ");
