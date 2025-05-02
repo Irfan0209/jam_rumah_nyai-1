@@ -7,7 +7,10 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-//#include <ESP8266mDNS.h>
+//////////
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
 #include <DMDESP.h>
 #include <ESP_EEPROM.h>
@@ -16,7 +19,12 @@ DMDESP  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan 
 // Pengaturan hotspot WiFi dari ESP8266
 char ssid[20]     = "JAM_PANEL_1";
 char password[20] = "00000000";
-//const char* host = "OTA-PANEL";
+
+//pengaturan wifi untuk upload program
+const char* idwifi = "KELUARGA02";
+const char* passwifi = "mawarmerah";
+const char* host = "PANEL_1";
+
 ESP8266WebServer server(80);
 
 #include <Wire.h>
@@ -85,7 +93,8 @@ float      dataFloat[10];
 int        dataInteger[10];
 uint8_t    indexText;
 uint8_t    list,lastList;
-//bool MODE=false;
+bool       stateMode       = 0;
+bool       stateBuzzWar    = 0;
 /*============== end ================*/
 
 enum Show{
@@ -96,7 +105,7 @@ enum Show{
   ANIM_ADZAN,
   ANIM_IQOMAH,
   ANIM_BLINK,
-  //ANIM_ZONK
+  UPLOAD
 };
 
 Show show = ANIM_JAM;
@@ -142,6 +151,7 @@ Show show = ANIM_JAM;
 #define ADDR_PASSWORD    240  // 8 byte
 #define ADDR_DURASIADZAN 248
 #define ADDR_CORRECTION  250
+#define ADDR_MODE        256
 
 
 void saveStringToEEPROM(int startAddr, String data, int maxLength) {
@@ -170,7 +180,7 @@ void saveIntToEEPROM(int addr, int16_t value) {
 // Fungsi untuk mengatur jam, tanggal, running text, dan kecerahan
 void handleSetTime() {
   Serial.println("hansle run");
-  //Buzzer(1);
+
   String data;
   if (server.hasArg("Tm")) {
     data = server.arg("Tm");
@@ -286,6 +296,13 @@ void handleSetTime() {
     getData(data);
     server.send(200, "text/plain","OK");// (stateBuzzer) ? "Suara Diaktifkan" : "Suara Dimatikan");
   }
+  if (server.hasArg("mode")) {
+    data = server.arg("mode"); // Atur status buzzer
+    data = "mode=" + data;
+    Serial.println(data);
+    getData(data);
+    server.send(200, "text/plain","OK");// (stateBuzzer) ? "Suara Diaktifkan" : "Suara Dimatikan");
+  }
   if (server.hasArg("status")) {
     server.send(200, "text/plain", "CONNECTED");
   }
@@ -298,7 +315,6 @@ void handleSetTime() {
       server.send(200, "text/plain","OK");// "Password WiFi diupdate");
     } 
   data="";
-  //Buzzer(0);
   }
   
 //=============================================================//
@@ -347,13 +363,65 @@ void AP_init() {
   Serial.println("Server dimulai.");  
 }
 
+void ONLINE(){
 
+ WiFi.mode(WIFI_STA);
+ WiFi.softAPConfig(local_IP, gateway, subnet);
+ WiFi.begin(idwifi,passwifi);
+ while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Connection Failed! Rebooting...");
+    digitalWrite(BUZZ,LOW);
+    delay(5000);
+    ESP.restart();
+  }
+  
+  ArduinoOTA.setHostname(host);
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else {  // U_FS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+    stateMode = 0;
+    EEPROM.write(ADDR_MODE, stateMode);
+    EEPROM.commit();
+    delay(1000);
+    ESP.restart();
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+}
 
 void setup() {
   //Serial.begin(115200);
   EEPROM.begin(EEPROM_SIZE);
   
   pinMode(BUZZ, OUTPUT); 
+  digitalWrite(BUZZ,LOW);
+  delay(200);
   digitalWrite(BUZZ,HIGH);
   int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
     if (rtn != 0) {
@@ -375,9 +443,15 @@ void setup() {
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
   loadFromEEPROM();
   delay(1000);
-  Disp_init_esp();
-  AP_init();
+  if(stateMode){
+    show = UPLOAD;
+    ONLINE();
+  }else{
+    Disp_init_esp();
+    AP_init();
+  }
   
+  delay(1000);
 for(int i = 0; i < 4; i++)
  {
       Buzzer(1);
@@ -390,7 +464,7 @@ for(int i = 0; i < 4; i++)
 
 void loop() {
   
-  server.handleClient();
+  stateMode == 1? ArduinoOTA.handle() : server.handleClient();
   check();
   islam();
   
@@ -412,8 +486,12 @@ void loop() {
     case ANIM_ADZAN :
       drawAzzan();
     break;
+
+    case UPLOAD :
+      buzzerUpload();
+    break;
   };
-  buzzerWarning();
+  buzzerWarning(stateBuzzWar);
   yield();
 }
 
@@ -441,13 +519,6 @@ void getData(String input) {
       }
     }
 
-    /*else if (key == "text") {
-      value = value.substring(0, 100); // Batasi 100 karakter
-      value.toCharArray(text, value.length() + 1);
-      saveStringToEEPROM(ADDR_TEXT, value, 100);
-      delay(500);
-      ESP.restart();
-    }*/
     else if (key == "text") {
       int separatorIndex = value.indexOf('-');
       if (separatorIndex != -1) {
@@ -539,20 +610,25 @@ void getData(String input) {
       config.durasiadzan = value.toInt();
       EEPROM.write(ADDR_DURASIADZAN, config.durasiadzan & 0xFF);
       EEPROM.write(ADDR_DURASIADZAN + 1, (config.durasiadzan >> 8) & 0xFF);
-      //EEPROM.commit();
     }
 
     else if (key == "CoHi") {
       config.Correction = value.toInt();
       EEPROM.write(ADDR_CORRECTION, config.Correction & 0xFF);
       EEPROM.write(ADDR_CORRECTION + 1, (config.Correction >> 8) & 0xFF);
-      //EEPROM.commit();
 }
 
 
     else if (key == "Bzr") {
       stateBuzzer = value.toInt();
       EEPROM.write(ADDR_BUZZER, stateBuzzer);
+    }
+
+    else if (key == "mode") {
+      stateMode = value.toInt();
+      EEPROM.write(ADDR_MODE, stateMode);
+      delay(1000);
+      ESP.restart();
     }
 
     else if (key == "newPassword") {
@@ -573,14 +649,7 @@ void getData(String input) {
 
 void loadFromEEPROM() {
   Serial.println("=== Membaca Data dari EEPROM ===");
-  /*
-  // Baca text
-  for (int i = 0; i < 100; i++) {
-    text[i] = EEPROM.read(ADDR_TEXT + i);
-    if (text[i] == 0) break;
-  }*/
-  
-
+ 
   for (int i = 0; i < 100; i++) {
     text1[i] = EEPROM.read(ADDR_TEXT1 + i);
     if (text1[i] == 0) break;
@@ -667,6 +736,10 @@ void loadFromEEPROM() {
   Serial.print("Buzzer: ");
   Serial.println(stateBuzzer);
 
+  stateMode = EEPROM.read(ADDR_MODE);
+  Serial.print("mode: ");
+  Serial.println(stateMode);
+
   for (int i = 0; i < 8; i++) {
     password[i] = EEPROM.read(ADDR_PASSWORD + i);
   }
@@ -685,125 +758,6 @@ void loadFromEEPROM() {
 
   Serial.println("=== Selesai Membaca EEPROM ===\n");
 }
-
-
-/*
-void getData(String input){
-        
-        int eq = input.indexOf('=');
-        if (eq != -1) {
-          String key = input.substring(0, eq);
-          String value = input.substring(eq + 1);
-          
-          if (key == "Tm") {
-            String setJam = value;
-            RtcDateTime now = Rtc.GetDateTime();
-            uint8_t colon = value.indexOf(':');
-            uint8_t dash1 = value.indexOf('-');
-            uint8_t dash2 = value.indexOf('-', dash1 + 1);
-            uint8_t dash3 = value.indexOf('-', dash2 + 1);
-            
-            if (colon != -1 && dash1 != -1 && dash2 != -1 && dash3 != -1) {
-              uint8_t jam = value.substring(0, colon).toInt();
-              uint8_t menit = value.substring(colon + 1, dash1).toInt();
-              uint8_t tanggal = value.substring(dash1 + 1, dash2).toInt();
-              uint8_t bulan = value.substring(dash2 + 1, dash3).toInt();
-              uint16_t tahun = value.substring(dash3 + 1).toInt();
-              Rtc.SetDateTime(RtcDateTime(tahun, bulan, tanggal, jam, menit, now.Second()));
-            }
-            
-          }
-          
-          else if (key == "text") {
-            value.toCharArray(text,value.length()+1);
-            Serial.println(text);
-          }
-
-          else if (key == "Br") {
-            brightness = map(value.toInt(),0,100,10,255);
-          }
-
-          else if (key == "Sptx") {
-            speedText1 =  map(value.toInt(),0,100,10,80);
-          }
-
-          else if (key == "Spdt") {
-            speedDate =  map(value.toInt(),0,100,10,80);
-          }
-
-          else if (key == "Lt") {
-            config.latitude = roundf(value.toFloat() * 1000000.0) / 1000000.0;
-            //Serial.println("Hasil la: " + String(config.latitude));
-          }
-
-          else if (key == "Lo") {
-            config.longitude = roundf(value.toFloat() * 1000000.0) / 1000000.0;
-            //Serial.println("Hasil lo: " + String(config.longitude));
-          }
-
-          else if (key == "Tz") {
-            config.zonawaktu = value.toInt();
-            //Serial.println("Hasil zo: " + config.zonawaktu);
-          }
-
-          else if (key == "Al") {
-           config.altitude = value.toInt();
-           //Serial.println("Hasil al: " + config.altitude);
-          }
-
-          else if (key == "Iq") {
-            // Mencari posisi tanda "-"
-            int separatorIndex = value.indexOf('-');
-          
-            // Memisahkan angka pertama
-            int indexSholat = value.substring(0, separatorIndex).toInt();
-          
-            // Memisahkan angka kedua
-            int indexKoreksi = value.substring(separatorIndex + 1).toInt();  
-            iqomah[indexSholat]=indexKoreksi;
-          }
-
-          else if (key == "Dy") {
-            // Mencari posisi tanda "-"
-            int separatorIndex = value.indexOf('-');
-          
-            // Memisahkan angka pertama
-            int indexSholat = value.substring(0, separatorIndex).toInt();
-          
-            // Memisahkan angka kedua
-            int indexKoreksi = value.substring(separatorIndex + 1).toInt();  
-            displayBlink[indexSholat]=indexKoreksi;
-          }
-
-          else if (key == "Kr") {
-            // Mencari posisi tanda "-"
-            int separatorIndex = value.indexOf('-');
-          
-            // Memisahkan angka pertama
-            int indexSholat = value.substring(0, separatorIndex).toInt();
-          
-            // Memisahkan angka kedua
-            int indexKoreksi = value.substring(separatorIndex + 1).toInt();  
-            dataIhty[indexSholat]=indexKoreksi;
-          }
-
-          else if (key == "Bzr") {
-            stateBuzzer = value.toInt();
-          }
-
-          else if (key == "newPassword"){
-            if(value.length()==8){
-              //Serial.println(String()+"newPassword:"+newPassword);
-              value.toCharArray(password, value.length() + 1); // Set password baru
-              //saveStringToEEPROM(56, password); // Simpan password AP
-              server.send(200, "text/plain", "Password WiFi diupdate");
-            }
-          }
-        }
-    
-}
-*/
-
 
  //----------------------------------------------------------------------
 // I2C_ClearBus menghindari gagal baca RTC (nilai 00 atau 165)
@@ -872,20 +826,38 @@ int I2C_ClearBus() {
   return 0; // all ok
 }
 
-void buzzerWarning(){
+void buzzerUpload(){
 
-   RtcDateTime now = Rtc.GetDateTime();
-   if(now.Hour() == 00 && now.Minute() == 00 && now.Second() <= 15){
     static bool state;
     static uint32_t save = 0;
+    static uint8_t  con = 0;
     uint32_t tmr = millis();
-
-    if(tmr - save > 2500){
+    
+    if(tmr - save > 1000 ){
       save = tmr;
       state = !state;
       digitalWrite(BUZZ, state);
-    }  
-   }
+      
+    }
+}
+
+void buzzerWarning(int cek){
+
+   static bool state = false;
+   static uint32_t save = 0;
+   uint32_t tmr = millis();
+   static uint8_t con = 0;
+    
+    if(tmr - save > 2500 && cek == 1){
+      save = tmr;
+      state = !state;
+      digitalWrite(BUZZ, state);
+      //Serial.println("active");
+      if(con <= 6) { con++; }
+      if(con == 7) { cek = 0; con = 0; state = false; stateBuzzWar = 0; }
+      Serial.println("con:" + String(con));
+    } 
+    
 }
 
 void Buzzer(uint8_t state)
@@ -899,123 +871,5 @@ void Buzzer(uint8_t state)
       case 1 :
         digitalWrite(BUZZ,LOW);
       break;
-      case 2 :
-        for(int i = 0; i < 2; i++){
-          digitalWrite(BUZZ,LOW);
-          delay(80);
-          digitalWrite(BUZZ,HIGH);
-          delay(80);
-        }
-      break;
     };
   }
-
-/*
-  void parsingData(String data){
-  // Data string
-  //String data = "0.1234-111.2345-7";
-  
-  char charData[20]; 
-  data.toCharArray(charData, sizeof(charData));
-
-  // Buffer untuk strtok_r()
-  char *token;
-  char *savePtr;
-
-  // Array penyimpanan angka
-  float angkaFloat[20];
-  int angkaInt[20];
-  int indexFloat = 0, indexInt = 0;
-
-  // Mulai parsing pertama
-  token = strtok_r(charData, "-", &savePtr);
-
-  while (token != NULL) { // Menggunakan while karena hanya dijalankan sekali
-//    Serial.print("Nilai ditemukan: ");
-//    Serial.println(token);
-
-    // Cek apakah token mengandung titik (float) atau tidak (int)
-    if (strchr(token, '.') != NULL) {
-      dataFloat[indexFloat] = atof(token);
-      Serial.print("Disimpan sebagai float: ");
-      Serial.println(dataFloat[indexFloat], 5);
-      config.latitude = dataFloat[0];
-      config.longitude = dataFloat[1];
-      indexFloat++;
-    } else {
-      dataInteger[indexInt] = atoi(token);
-      Serial.print("Disimpan sebagai int: ");
-      Serial.println(dataInteger[indexInt]);
-      config.zonawaktu = dataInteger[0];
-      config.altitude  = dataInteger[1];
-      indexInt++;
-    }
-
-    // Ambil nilai berikutnya
-    token = strtok_r(NULL, "-", &savePtr);
-  }
-
-  //Serial.println("\nParsing selesai di proses()");
-}
-*/
-/*
-void parsingData(String data) {
-  char charData[40]; 
-  data.toCharArray(charData, sizeof(charData));
-
-  // Buffer untuk strtok_r()
-  char *token;
-  char *savePtr;
-
-  // Array penyimpanan angka
-  float dataFloat[20];
-  int dataInteger[20];
-  int indexFloat = 0, indexInt = 0;
-
-    token = strtok_r(charData, "-", &savePtr);
-  while (token != NULL) {
-    String value;
-
-    if (strlen(token) == 0) {
-      // Ini token kosong akibat tanda minus
-      token = strtok_r(NULL, "-", &savePtr);
-      if (token != NULL) {
-        value = "-" + String(token);  // <- tambahkan tanda minus di depan
-      }
-    } else {
-      value = String(token);
-    }
-
-    if (value.length() > 0) {
-      if (value.indexOf('.') != -1) {
-        float tempFloat = value.toFloat();
-        dataFloat[indexFloat] = roundf(tempFloat * 1000000.0) / 1000000.0;
-
-        Serial.print("Disimpan sebagai float: ");
-        Serial.println(dataFloat[indexFloat], 6);
-
-        if (indexFloat == 0) config.latitude = dataFloat[0];
-        if (indexFloat == 1) config.longitude = dataFloat[1];
-
-        indexFloat++;
-      } else {
-        dataInteger[indexInt] = value.toInt();
-        Serial.print("Disimpan sebagai int: ");
-        Serial.println(dataInteger[indexInt]);
-
-        if (indexInt == 0) config.zonawaktu = dataInteger[0];
-        if (indexInt == 1) config.altitude  = dataInteger[1];
-
-        indexInt++;
-      }
-    }
-
-    token = strtok_r(NULL, "-", &savePtr);
-  }
-
-
-//  // Format output akhir
-//  String hasil = String(config.latitude, 6) + "&" + String(config.longitude, 6);
-//  Serial.println("Hasil Format: " + hasil);
-}
-*/
